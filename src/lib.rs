@@ -1,39 +1,16 @@
 #[cfg(test)]
 mod tests {
-    const TIME_NEVER: i64 = 9223372036854775807;
-
     #[test]
-    fn test_duration_01() {
-        let standard =
-            std::time::SystemTime::UNIX_EPOCH + std::time::Duration::from_nanos(TIME_NEVER as u64);
-        let value = standard.duration_since(std::time::UNIX_EPOCH).unwrap();
+    fn test_filetime_for_windows() {
+        let path = std::env::temp_dir().join("test_mtime_zero.tmp");
+        std::fs::File::create(&path).expect("failed to create temp file");
 
-        panic!(
-            "{value:?} {} {TIME_NEVER} {:?} {:?}",
-            value.as_nanos(),
-            std::time::SystemTime::UNIX_EPOCH,
-            std::time::SystemTime::UNIX_EPOCH.duration_since(std::time::SystemTime::UNIX_EPOCH)
-        );
-    }
+        let meta = std::fs::metadata(&path).expect("failed to read metadata");
+        let mtime = filetime::FileTime::from_last_modification_time(&meta);
 
-    #[test]
-    fn test_duration_02() {
-        let standard = std::time::SystemTime::UNIX_EPOCH - std::time::Duration::from_nanos(1);
-        let value01 = standard
-            .duration_since(std::time::SystemTime::UNIX_EPOCH)
-            .unwrap();
+        filetime::set_file_mtime(&path, mtime).expect("failed to set mtime");
 
-        let nanos = u64::MAX;
-        let standard = std::time::SystemTime::UNIX_EPOCH + std::time::Duration::from_nanos(nanos);
-        let value02 = standard
-            .duration_since(std::time::SystemTime::UNIX_EPOCH)
-            .unwrap();
-        panic!(
-            "{value01:?} {}\n{value02:?}: {} {:?} {:?}",
-            value01.as_nanos(),
-            value02.as_nanos(),
-            std::time::SystemTime::UNIX_EPOCH,
-            std::time::SystemTime::UNIX_EPOCH.duration_since(std::time::SystemTime::UNIX_EPOCH)
-        );
+        std::fs::remove_file(&path).ok();
+        assert_eq!(mtime, filetime::FileTime::zero());
     }
 }
